@@ -1,5 +1,12 @@
 import submission
-allExchanges = variable()
+import currency
+allExchanges = Variable()
+disableChangingContract = Variable()
+governenceContract = Variable()
+@construct
+def seed():
+    ctx.owner = ctx.caller
+    governenceContract.set(ctx.this)
 @export
 def createChildContract(AMMAddress: str, tokenAddress: str):
     contract = """# you must transfer 0.01 TAU and the equivalent in your Token to ctx.this to start liquidity. It's a hack, but I really don't want to think about liquidity logic any more
@@ -8,9 +15,6 @@ import currency
 import basetoken
 liquidityTokenBalance = Hash(default_value=0)
 totalLiquidityTokens = Hash(default_value=100)
-@construct
-def seed():
-    ctx.owner = ctx.caller
 @export 
 def tradeTAUForToken(amount: int, fromAddress: str):
     assert amount > 0, 'Cannot send negative balance'
@@ -79,8 +83,21 @@ def liquidityRatio():
     submission.submit_contract(AMMAddress, contract)
     exchangeList = allExchanges.get()
     allExchanges.set(exchangeList + "\n" + AMMAddress)
-#@export
-#def deployGovernenceToken(amount:):
-#    assert ctx.owner == ctx.caller
+@export
+def setGovernenceToken(address: str):
+    assert ctx.owner == ctx.caller
+    assert disableChangingContract.get() == 0
+    governenceContract.set(address)
+@export
+def disableContractChanges():
+    assert ctx.owner == ctx.caller
+    disableChangingContract.set(1)
+@export
+def forwardTransactionFeeRewards():
+    assert disableChangingContract.get() == 1
+    amount = currency.balance_of(ctx.this)
+    currency.transfer(amount, governenceContract.get())
+    
+   
     
 
